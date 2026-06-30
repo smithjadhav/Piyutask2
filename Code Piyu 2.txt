@@ -1,0 +1,57 @@
+print("\n[STEP 5 ALTERNATIVE] Getting ALL workbooks in Retail Sales project...")
+ 
+# First get Retail Sales project ID
+retail_project_id = None
+for proj in all_projects:
+    if proj['name'] == 'Retail Sales':
+        retail_project_id = proj['id']
+        break
+ 
+if not retail_project_id:
+    print("❌ Retail Sales project not found")
+else:
+    print(f"✅ Found Retail Sales project ID: {retail_project_id}\n")
+    
+    # Get workbooks FROM the project (not from /workbooks endpoint)
+    # This should return all workbooks in the project
+    all_retail_wbs = []
+    page = 1
+    
+    while True:
+        # Try getting content from project
+        r = requests.get(
+            f"{SERVER_URL}/api/{API_VERSION}/sites/{site_id}/projects/{retail_project_id}",
+            headers=auth_headers
+        )
+        
+        if r.status_code == 200:
+            print(f"Page {page}: Status 200")
+        else:
+            print(f"Page {page}: Status {r.status_code}")
+            break
+        
+        # Alternative: Query workbooks with projectId filter
+        r2 = requests.get(
+            f"{SERVER_URL}/api/{API_VERSION}/sites/{site_id}/workbooks"
+            f"?filter=projectId:eq:{retail_project_id}&pageSize=100&pageNumber={page}",
+            headers=auth_headers
+        )
+        
+        data = r2.json()
+        wbs = data.get("workbooks", {}).get("workbook", [])
+        all_retail_wbs.extend(wbs)
+        
+        print(f"   Got {len(wbs)} workbooks (Total: {len(all_retail_wbs)})")
+        
+        pagination = data.get("workbooks", {}).get("pagination", {})
+        if len(wbs) == 0 or len(all_retail_wbs) >= int(pagination.get("totalAvailable", 0)):
+            break
+        page += 1
+    
+    print(f"\n✅ Total workbooks found: {len(all_retail_wbs)}")
+    
+    if len(all_retail_wbs) > 1:
+        print("\nRetail Sales workbooks:")
+        for idx, wb in enumerate(all_retail_wbs, 1):
+            owner = wb.get("owner", {}).get("name", "Unknown")
+            print(f"{idx:3d}. {wb['name']:50s} | Owner: {owner}")
