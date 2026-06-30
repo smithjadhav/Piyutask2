@@ -1,0 +1,67 @@
+print("\n[STEP 5 FIXED] Fetching ALL workbooks with proper pagination...")
+ 
+all_workbooks = []
+page = 1
+total_fetched = 0
+ 
+while True:
+    wb_url = (f"{SERVER_URL}/api/{API_VERSION}/sites/{site_id}/workbooks"
+              f"?pageSize=100&pageNumber={page}")
+    
+    r = requests.get(wb_url, headers=auth_headers)
+    
+    if r.status_code != 200:
+        print(f"❌ Error on page {page}: {r.status_code}")
+        break
+    
+    data = r.json()
+    workbooks = data.get("workbooks", {}).get("workbook", [])
+    
+    if not workbooks:
+        print(f"Page {page}: No more workbooks")
+        break
+    
+    all_workbooks.extend(workbooks)
+    total_fetched += len(workbooks)
+    
+    pagination = data.get("workbooks", {}).get("pagination", {})
+    total_available = int(pagination.get("totalAvailable", 0))
+    page_size = int(pagination.get("pageSize", 100))
+    
+    print(f"Page {page}: +{len(workbooks)} workbooks | Total so far: {len(all_workbooks)}/{total_available}")
+    
+    # Keep going until we have everything
+    if len(all_workbooks) >= total_available:
+        break
+    
+    page += 1
+ 
+print(f"\n✅ Total workbooks fetched: {len(all_workbooks)}")
+ 
+# Now count by project
+print("\n📊 Workbooks by Project:")
+print("=" * 80)
+ 
+project_count = {}
+for wb in all_workbooks:
+    proj = wb.get("project", {}).get("name", "Unknown")
+    if proj not in project_count:
+        project_count[proj] = 0
+    project_count[proj] += 1
+ 
+for proj in sorted(project_count.keys()):
+    count = project_count[proj]
+    marker = "✅" if proj == "Retail Sales" else "  "
+    print(f"{marker} {proj:30s}: {count:3d} workbooks")
+ 
+# Filter to Retail Sales
+retail_workbooks = [wb for wb in all_workbooks 
+                    if wb.get("project", {}).get("name") == "Retail Sales"]
+ 
+print(f"\n✅ Retail Sales workbooks: {len(retail_workbooks)}")
+print("\nRetail Sales Workbooks List:")
+print("-" * 80)
+for idx, wb in enumerate(retail_workbooks, 1):
+    owner = wb.get("owner", {}).get("name", "Unknown")
+    print(f"{idx:3d}. {wb['name']:50s} | Owner: {owner}")
+ 
